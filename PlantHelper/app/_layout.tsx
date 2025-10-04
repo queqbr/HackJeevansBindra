@@ -1,9 +1,8 @@
 import { Stack } from 'expo-router';
-import React from 'react';
 import 'react-native-reanimated';
 
 // import { useColorScheme } from '@/hooks/use-color-scheme';
-import { Alert, BackHandler, Linking, Platform, Pressable, StyleSheet, Text, useColorScheme } from 'react-native';
+import { Alert, BackHandler, Linking, Platform, Pressable, StyleSheet, Text, useColorScheme, View } from 'react-native';
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -50,17 +49,24 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
 
   return (
-    <Stack
-      screenOptions={{
-        headerLeft: () => <HeaderExitButton />,
-        headerStyle: { backgroundColor: '#111827' },
-        headerTintColor: '#ffffff',
-        headerTitleStyle: { fontWeight: '600' },
-      }}
-    >
-      <Stack.Screen name="index" options={{ title: 'Home' }} />
-      <Stack.Screen name="about" options={{ title: 'About' }} />
-    </Stack>
+    <>
+      <Stack
+        screenOptions={{
+          // Hide the default top header (big bar with the page title)
+          headerShown: false,
+          headerStyle: { backgroundColor: '#111827' },
+          headerTintColor: '#ffffff',
+          headerTitleStyle: { fontWeight: '600' },
+        }}
+      >
+  <Stack.Screen name="index" options={{ title: 'Home' }} />
+      </Stack>
+
+      {/* Floating exit button so the user can still exit while headerShown is false */}
+      <View style={[styles.exitButtonContainer, Platform.OS === 'ios' ? { top: 44 } : {}]} pointerEvents="box-none">
+        <HeaderExitButton />
+      </View>
+    </>
   );
 }
 
@@ -73,5 +79,11 @@ const styles = StyleSheet.create({
   headerButtonText: {
     color: '#fff',
     fontSize: 14,
+  },
+  exitButtonContainer: {
+    position: 'absolute',
+    left: 8,
+    top: 12,
+    zIndex: 1000,
   },
 });
