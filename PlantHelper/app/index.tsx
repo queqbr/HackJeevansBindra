@@ -1,11 +1,22 @@
 import * as ImagePicker from 'expo-image-picker';
-import { useRouter } from 'expo-router';
+import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 export default function Index() {
   const router = useRouter();
   const [imageUri, setImageUri] = useState<string | null>(null);
+
+  const params = useLocalSearchParams();
+  const skip = params?.skip === 'true';
+
+  // Declarative redirect to /landing — expo-router will handle this safely
+  // once the navigator is mounted. If skip=true is present, render the home UI.
+  if (!skip) return <Redirect href="/landing" />;
+  const { height } = useWindowDimensions();
+  const HERO_HEIGHT = 180;
+  // place hero vertically midway between top and the centered content area
+  const heroTop = Math.max(16, height * 0.25 - HERO_HEIGHT / 2);
 
   async function requestPermissions() {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -53,19 +64,8 @@ export default function Index() {
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.appName}>A Helping Hand</Text>
-      <Text style={styles.title}>Identify your plant</Text>
-      <Text style={styles.subtitle}>Take or upload a photo of a plant to get started</Text>
-
-      <View style={styles.buttonsRow}>
-        <Pressable style={styles.button} onPress={takePhoto}>
-          <Text style={styles.buttonText}>Take Photo</Text>
-        </Pressable>
-        <Pressable style={styles.button} onPress={pickImage}>
-          <Text style={styles.buttonText}>Upload Photo</Text>
-        </Pressable>
-      </View>
+    <View style={[styles.container, { alignItems: 'center', justifyContent: 'center' }]}>
+      <Text>Redirecting to welcome...</Text>
     </View>
   );
 }
@@ -75,6 +75,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#ffffff',
     padding: 20,
+    paddingTop: 20,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -124,6 +125,20 @@ const styles = StyleSheet.create({
     height: 300,
     marginTop: 16,
     borderRadius: 8,
+  },
+  hero: {
+    width: 180,
+    height: 180,
+    alignSelf: 'center',
+    position: 'absolute',
+    top: 40,
+    zIndex: 0,
+  },
+  content: {
+    zIndex: 1,
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   placeholder: {
     width: '100%',

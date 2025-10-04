@@ -50,7 +50,7 @@ export default function RootLayout() {
 
   return (
     <>
-      <Stack
+      <Stack 
         screenOptions={{
           // Hide the default top header (big bar with the page title)
           headerShown: false,

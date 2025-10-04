@@ -1,162 +1,218 @@
-import * as ImagePicker from 'expo-image-picker';
-import { Stack } from 'expo-router';
-import React, { useState } from 'react';
-import { Alert, BackHandler, Image, Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import { useRef, useState } from 'react';
+import {
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  Pressable,
+  Image as RNImage,
+  ScrollView,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native';
+
+const SLIDES = [
+  {
+    key: 'welcome',
+    title: 'Welcome to \nA Helping Hand',
+    text: 'Kickstart your gardening journey with ease.',
+    image: require('../assets/images/helpinghandimage copy.png'),
+  },
+  {
+    key: 'how-it-works',
+    title: 'Snap or Upload',
+    text: 'Take a clear photo or choose one from your gallery.',
+    image: require('../assets/images/icon.png'),
+  },
+  {
+    key: 'get-started',
+    title: 'Get Started',
+    text: "Let's identify your first plant — it's fast and helpful.",
+    image: require('../assets/images/splash-icon.png'),
+  },
+];
 
 export default function Landing() {
-  const [imageUri, setImageUri] = useState<string | null>(null);
+  const router = useRouter();
+  const { width } = useWindowDimensions();
+  // use a permissive ref so we can call scrollTo on the ScrollView
+  const scrollRef = useRef<ScrollView | null>(null);
+  const [index, setIndex] = useState(0);
+  const [scrollX, setScrollX] = useState(0);
+  const onMomentumScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const newIndex = Math.round(e.nativeEvent.contentOffset.x / width);
+    setIndex(newIndex);
+  };
 
-  async function requestPermissions() {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission required', 'Permission to access media library is required.');
-      return false;
-    }
-    return true;
-  }
+  const goTo = (i: number) => {
+    scrollRef.current?.scrollTo({ x: i * width, animated: true });
+    setIndex(i);
+  };
 
-  async function pickImage() {
-    const ok = await requestPermissions();
-    if (!ok) return;
+  const next = () => {
+    if (index < SLIDES.length - 1) goTo(index + 1);
+    else router.push('/');
+  };
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.8,
-    });
-
-    if (!result.canceled && result.assets && result.assets.length > 0) {
-      setImageUri(result.assets[0].uri);
-    }
-  }
-
-  async function takePhoto() {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission required', 'Permission to access camera is required.');
-      return;
-    }
-
-    const result = await ImagePicker.launchCameraAsync({
-      quality: 0.8,
-    });
-
-    if (!result.canceled && result.assets && result.assets.length > 0) {
-      setImageUri(result.assets[0].uri);
-    }
-  }
-
-  function exitApp() {
-    if (Platform.OS === 'android') {
-      // Gracefully exit the app on Android
-      BackHandler.exitApp();
-      return;
-    }
-
-    // On iOS and web we can't programmatically exit the app.
-    // Try to open the Expo Go app using common schemes; fall back to an alert
-    const schemes = ['expo-go://', 'exp://', 'expo://'];
-    let opened = false;
-
-    (async () => {
-      for (const scheme of schemes) {
-        try {
-          const supported = await Linking.canOpenURL(scheme);
-          if (supported) {
-            await Linking.openURL(scheme);
-            opened = true;
-            break;
-          }
-        } catch {
-          // ignore and try next
-        }
-      }
-
-      if (!opened) {
-        Alert.alert(
-          'Exit app',
-          'On this platform you cannot programmatically exit. To reset, return to the Expo Go app or close this app.'
-        );
-      }
-    })();
-  }
+  const skip = () => {
+    // Navigate to root with a skip flag so index won't redirect back to landing
+    router.push({ pathname: '/', params: { skip: 'true' } } as any);
+  };
 
   return (
     <View style={styles.container}>
-      <Stack.Screen options={{ title: 'Get a Photo' }} />
-      <Text style={styles.title}>Choose or take a photo</Text>
-
-      <View style={styles.buttonsRow}>
-        <Pressable style={styles.button} onPress={takePhoto}>
-          <Text style={styles.buttonText}>Take Photo</Text>
-        </Pressable>
-        <Pressable style={styles.button} onPress={pickImage}>
-          <Text style={styles.buttonText}>Upload Photo</Text>
-        </Pressable>
-      </View>
-
-      {imageUri ? (
-        <Image source={{ uri: imageUri }} style={styles.preview} resizeMode="cover" />
-      ) : (
-        <View style={styles.placeholder}>
-          <Text style={styles.placeholderText}>No photo selected</Text>
-        </View>
-      )}
-
-      {imageUri ? (
-        <Pressable
-          style={[styles.button, { marginTop: 12, backgroundColor: '#2a9d8f' }]}
-          onPress={() => Alert.alert('Photo selected', 'You can now process or upload this photo.')}
+      <View style={{ flex: 1 }}>
+        <ScrollView
+          ref={scrollRef}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          scrollEventThrottle={16}
+          onMomentumScrollEnd={onMomentumScrollEnd}
+          onScroll={(e) => setScrollX(e.nativeEvent.contentOffset.x)}
+          contentContainerStyle={{ alignItems: 'center' }}
+          style={{ flex: 1 }}
         >
-          <Text style={styles.buttonText}>Confirm</Text>
-        </Pressable>
-      ) : null}
+          {SLIDES.map((slide, i) => {
+            return (
+              <View style={[styles.slide, { width }]} key={slide.key}>
+                <View style={styles.slideContent}>
+                  <View style={styles.imageWrap}>
+                    <RNImage source={slide.image} style={styles.image} resizeMode="contain" />
+                  </View>
+
+                  <View style={styles.textWrap}>
+                    <Text style={styles.slideTitle}>{slide.title}</Text>
+                    <Text style={styles.slideText}>{slide.text}</Text>
+                  </View>
+                </View>
+              </View>
+            );
+          })}
+        </ScrollView>
+
+        <View style={styles.footer} pointerEvents="box-none">
+          <View style={styles.dots}>
+            {SLIDES.map((_, i) => (
+              <View key={`dot-${i}`} style={[styles.dot, i === index ? styles.dotActive : null]} />
+            ))}
+          </View>
+
+          <View style={styles.buttonsRow}>
+            <Pressable onPress={skip} style={styles.linkButton}>
+              <Text style={styles.linkText}>Skip</Text>
+            </Pressable>
+
+            <Pressable onPress={next} style={styles.primaryButton}>
+              <Text style={styles.primaryButtonText}>
+                {index === SLIDES.length - 1 ? 'Get Started' : 'Next'}
+              </Text>
+            </Pressable>
+          </View>
+          {/* debug UI removed */}
+        </View>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  container: { flex: 1, backgroundColor: '#fff' },
+  slide: {
     flex: 1,
-    backgroundColor: '#25292e',
-    padding: 20,
+    alignItems: 'center',
+    paddingTop: 0,
+    justifyContent: 'center',
+    paddingHorizontal: 24,
   },
-  title: {
-    color: '#fff',
-    fontSize: 20,
+  imageWrap: {
+    width: 260,
+    height: 260,
+    borderRadius: 12,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+  marginBottom: 8,
+    backgroundColor: 'transparent',
+  },
+  image: {
+    width: '100%',
+    height: '100%',
+  },
+  textWrap: {
+    alignItems: 'center',
+    paddingHorizontal: 12,
+  },
+  slideTitle: {
+    fontSize: 40,
+    color: '#2a9d8f',
+    fontWeight: '700',
+  marginBottom: 4,
     textAlign: 'center',
-    marginVertical: 16,
   },
-  buttonsRow: {
+  slideText: {
+    fontSize: 15,
+    color: '#444',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  footer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 24,
+    paddingHorizontal: 24,
+    paddingTop: 10,
+  },
+  dots: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 12,
+    marginBottom: 12,
   },
-  button: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    backgroundColor: '#444',
+  dot: {
+    width: 8,
+    height: 8,
     borderRadius: 8,
+    backgroundColor: '#333',
+    marginHorizontal: 6,
   },
-  buttonText: {
-    color: '#fff',
+  dotActive: {
+    backgroundColor: '#2a9d8f',
+    width: 12,
+    height: 12,
+    borderRadius: 12,
   },
-  preview: {
-    width: '100%',
-    height: 300,
-    marginTop: 16,
-    borderRadius: 8,
-  },
-  placeholder: {
-    width: '100%',
-    height: 300,
-    marginTop: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#444',
+  // slideContent centered
+  slideContent: {
+    alignItems: 'center',
     justifyContent: 'center',
+    transform: [{ translateY: -50 }],
+  },
+  // debug styles removed
+  // debug styles removed
+  buttonsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
   },
-  placeholderText: {
-    color: '#999',
+  linkButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  linkText: {
+    color: '#666',
+    fontSize: 16,
+  },
+  primaryButton: {
+    backgroundColor: '#2a9d8f',
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    borderRadius: 10,
+  },
+  primaryButtonText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 16,
   },
 });
