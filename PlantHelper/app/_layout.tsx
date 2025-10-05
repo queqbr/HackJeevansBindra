@@ -72,8 +72,8 @@ export default function RootLayout() {
 
 const styles = StyleSheet.create({
   headerButton: {
-    marginLeft: 12,
-    paddingHorizontal: 8,
+    marginLeft: 18,
+    paddingHorizontal: 10,
     paddingVertical: 6,
   },
   headerButtonText: {
@@ -82,7 +82,7 @@ const styles = StyleSheet.create({
   },
   exitButtonContainer: {
     position: 'absolute',
-    left: 8,
+    right: 8,
     top: 12,
     zIndex: 1000,
   },

@@ -1,22 +1,33 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { setIdentification } from '../lib/identificationStore';
 
 export default function Preview() {
   const params = useLocalSearchParams<{ uri?: string; uri2?: string }>();
   const router = useRouter();
   const [displayUri, setDisplayUri] = useState<string | undefined>(params?.uri);
+  const [uploading, setUploading] = useState(false);
+  const mountedRef = useRef(true);
 
   useEffect(() => {
     setDisplayUri(params?.uri);
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
   }, [params?.uri]);
 
   function confirm() {
     // upload displayed images to the inference server and show the response
+    if (uploading) return;
+    // start upload in background, but navigate immediately
+    setUploading(true);
     uploadAndIdentify().catch((err) => {
       console.error(err);
       Alert.alert('Upload failed', String(err));
     });
+    router.push({ pathname: '/soil-questionnaire' } as any);
   }
 
   // Configure this via environment or replace with your server address (ngrok or local IP).
@@ -42,7 +53,9 @@ export default function Preview() {
   }
 
   async function uploadAndIdentify() {
+    if (uploading) return;
     if (!uri && !uri2) {
+      if (mountedRef.current) setUploading(false);
       Alert.alert('No image', 'There is no image to identify');
       return;
     }
@@ -63,17 +76,43 @@ export default function Preview() {
     await appendEntry(uri);
     if (uri2) await appendEntry(uri2);
 
-    const res = await fetch(`${SERVER_URL}/predict`, {
-      method: 'POST',
-      body: formData,
-    });
+    // add a failsafe timeout so the app doesn't hang waiting for a slow server
+    const TIMEOUT_MS = Number(process.env.EXPO_PUBLIC_PREDICT_TIMEOUT) || 10000;
+    const controller = new AbortController();
+    const signal = controller.signal;
+    const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(`Server error ${res.status}: ${text}`);
+    try {
+      const res = await fetch(`${SERVER_URL}/predict`, {
+        method: 'POST',
+        body: formData,
+        signal,
+      });
+
+      clearTimeout(timeout);
+
+      if (!res.ok) {
+        const text = await res.text();
+        // ensure we set identification to null so waiting code proceeds
+        setIdentification(null);
+        throw new Error(`Server error ${res.status}: ${text}`);
+      }
+
+      const json = await res.json();
+      // store identification result so the questionnaire can read it when ready
+      setIdentification(json);
+    } catch (e: any) {
+      // On abort or any error, set identification to null so questionnaire continues
+      if (e && e.name === 'AbortError') {
+        console.warn('Predict request aborted due to timeout');
+      } else {
+        console.error('Predict error', e);
+      }
+      try { setIdentification(null); } catch {}
+    } finally {
+      clearTimeout(timeout);
+      if (mountedRef.current) setUploading(false);
     }
-    const json = await res.json();
-    Alert.alert('Result', JSON.stringify(json, null, 2));
   }
 
   const { uri, uri2 } = params || ({} as any);
@@ -107,8 +146,8 @@ export default function Preview() {
         <Pressable style={[styles.button, { backgroundColor: '#2a9d8f' }]} onPress={() => router.back()}>
           <Text style={styles.buttonText}>Back</Text>
         </Pressable>
-        <Pressable style={[styles.button, { backgroundColor: '#2a9d8f' }]} onPress={confirm}>
-          <Text style={styles.buttonText}>Confirm</Text>
+        <Pressable style={[styles.button, { backgroundColor: '#2a9d8f', opacity: uploading ? 0.6 : 1 }]} onPress={confirm} disabled={uploading}>
+          <Text style={styles.buttonText}>{uploading ? 'Uploading...' : 'Confirm'}</Text>
         </Pressable>
       </View>
     </View>
