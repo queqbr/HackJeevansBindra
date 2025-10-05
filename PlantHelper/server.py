@@ -10,6 +10,11 @@ import os
 import json
 import httpx
 import asyncio
+import tensorflow as tf
+import numpy as np
+import json
+from tensorflow.keras.preprocessing import image
+import matplotlib.pyplot as plt
 
 # Optional: load environment variables from a .env file during local development
 try:
@@ -128,16 +133,48 @@ async def predict(files: List[UploadFile] = File(...), meta: Optional[str] = For
     if not files:
         raise HTTPException(status_code=400, detail="No files uploaded")
 
-    images = []
+    images = i1,i2
     for upload in files:
         content = await upload.read()
         try:
             img = Image.open(io.BytesIO(content)).convert("RGB")
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"Invalid image: {upload.filename}") from e
-        images.append(img)
+        if(i1==null):
+            i1 = img
+        else:
+            i2 = img
+    MODEL_PATH = "Soil_model.keras"         
+    LABELS_JSON = "soil_labels.json" 
+    MODEL_PATH1 = "plant_leaf2.keras"         
+    LABELS_JSON1 = "plant_leaf_labels.json"     
+    IMG_SIZE = 224                           
 
-    results = run_model_stub(images)
+    model = tf.keras.models.load_model(MODEL_PATH)
+
+    with open(LABELS_JSON, "r") as f:
+        class_names = json.load(f)
+
+    img = image.load_img(i1, target_size=(IMG_SIZE, IMG_SIZE))
+    img_array = image.img_to_array(img) / 255.0
+    img_array = np.expand_dims(img_array, axis=0)
+
+    pred = model.predict(img_array)
+    results = class_names[np.argmax(pred[0])]
+                           
+
+    model = tf.keras.models.load_model(MODEL_PATH1)
+
+    with open(LABELS_JSON1, "r") as f:
+        class_names = json.load(f)
+
+    img = image.load_img(i2, target_size=(IMG_SIZE, IMG_SIZE))
+    img_array = image.img_to_array(img) / 255.0
+    img_array = np.expand_dims(img_array, axis=0)
+
+    pred = model.predict(img_array)
+    predicted_label = class_names[np.argmax(pred[0])]
+    #results = run_model_stub(images)
     if meta:
         try:
             import json as _json
