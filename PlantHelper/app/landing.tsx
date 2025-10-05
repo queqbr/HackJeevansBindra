@@ -20,16 +20,22 @@ const SLIDES = [
     image: require('../assets/images/helpinghandimage copy.png'),
   },
   {
-    key: 'how-it-works',
-    title: 'Snap or Upload',
-    text: 'Take a clear photo or choose one from your gallery.',
-    image: require('../assets/images/icon.png'),
+    key: 'soil-lifestyle',
+    title: 'No Idea What To Grow?',
+    text: 'Upload a photo of your soil and answer a few quick lifestyle questions (light, watering habits, time at home) so we can recommend plants that fit your routine.',
+    image: require('../assets/images/confusedgirl.jpg'),
+  },
+  {
+    key: 'compatibility-check',
+    title: 'Will It Thrive?',
+    text: 'Upload a picture of your soil and a picture of a plant to check whether the plant will thrive in that soil — quick compatibility results help you avoid mismatches.',
+    image: require('../assets/images/plantgrowing.jpg'),
   },
   {
     key: 'get-started',
     title: 'Get Started',
-    text: "Let's identify your first plant — it's fast and helpful.",
-    image: require('../assets/images/splash-icon.png'),
+    text: "We're here to help you jump into the world of gardening.",
+    image: require('../assets/images/trowel.jpg'),
   },
 ];
 
@@ -52,12 +58,12 @@ export default function Landing() {
 
   const next = () => {
     if (index < SLIDES.length - 1) goTo(index + 1);
-    else router.push('/');
+    else router.push({ pathname: '/start' } as any);
   };
 
   const skip = () => {
-    // Navigate to root with a skip flag so index won't redirect back to landing
-    router.push({ pathname: '/', params: { skip: 'true' } } as any);
+    // Navigate to the start chooser screen
+    router.push({ pathname: '/start' } as any);
   };
 
   return (
