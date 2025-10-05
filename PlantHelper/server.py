@@ -42,7 +42,15 @@ async def generate_recommendations(identification: dict, meta: dict):
 
     recommendations = []
 
-    prompt = f"You are a plant recommendation assistant.\n\nIdentification result: {identification}\nUser answers: {meta}\n\nProduce a JSON object with keys: 'recommendations' (an array of objects with 'name' and 'reason'), and 'explanation' (a short text explanation). Keep JSON valid and nothing else.\n\nLimit to 3 recommendations."
+    prompt = (
+        "You are a friendly, practical plant recommendation assistant.\n\n"
+        f"Identification result: {identification}\nUser answers: {meta}\n\n"
+        "Task: suggest up to 3 plants that are widely available and commonly known to average plant shoppers. Prefer common names (e.g., 'snake plant', 'pothos', 'peace lily') and also include familiar home garden plants when appropriate — herbs and small edibles (basil, mint, rosemary), common ornamentals (marigold, geranium, lavender), or other easy-to-find garden/yard plants.\n\n"
+        "For each recommendation return a short 'name' (common name), and a concise 'reason' that explains why this plant fits the user's situation (mention sunlight, watering frequency, space, busy level, or climate when relevant). Indicate whether the plant is typically kept indoors or outdoors when relevant. Avoid very rare or specialist species.\n\n"
+        "Output: ONLY one valid JSON object with keys: 'recommendations' (array of objects with 'name' and 'reason') and 'explanation' (a 1-2 sentence human-friendly summary). Do not include any commentary outside the JSON.\n\n"
+        "Example output format:\n{" + '"recommendations": [{"name": "pothos", "reason": "thrives in low to medium light and tolerates irregular watering"}], "explanation": "Short explanation"}' + "\n\n"
+        "Limit to 3 recommendations."
+    )
 
     async def call_generative(prompt_text: str) -> str:
         # Read API key and model name from environment (or .env)
@@ -109,7 +117,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 
 def run_model_stub(images: List[Image.Image]):
     results = []

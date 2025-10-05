@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.queqbr.planthelper.server</string>
+
+  <!-- Run the uvicorn binary from the project's virtualenv. Adjust the path below if your venv is elsewhere. -->
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/queqbr/PlantHelper/.venv/bin/uvicorn</string>
+    <string>server:app</string>
+    <string>--host</string>
+    <string>0.0.0.0</string>
+    <string>--port</string>
+    <string>8000</string>
+    <string>--log-level</string>
+    <string>info</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>/Users/queqbr/PlantHelper</string>
+
+  <!-- Keep the server alive; restart if it exits. -->
+  <key>KeepAlive</key>
+  <true/>
+
+  <!-- Start the service at user login. -->
+  <key>RunAtLoad</key>
+  <true/>
+
+  <!-- Redirect stdout/stderr to a log file. -->
+  <key>StandardOutPath</key>
+  <string>/tmp/planthelper_uvicorn.log</string>
+  <key>StandardErrorPath</key>
+  <string>/tmp/planthelper_uvicorn.log</string>
+
+  <!-- Ensure the daemon runs with the user's nice level and environment; if your uvicorn requires environment vars, set them here using EnvironmentVariables. -->
+  <!-- Example:
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>OPENAI_API_KEY</key>
+    <string>your_api_key_here</string>
+  </dict>
+  -->
+
+</dict>
+</plist>

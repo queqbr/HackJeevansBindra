@@ -1,7 +1,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import { setIdentification } from '../lib/identificationStore';
+import { setIdentification, setRecommendations } from '../lib/identificationStore';
 
 export default function Preview() {
   const params = useLocalSearchParams<{ uri?: string; uri2?: string }>();
@@ -60,6 +60,8 @@ export default function Preview() {
       return;
     }
 
+    // no preflight health check — proceed directly to upload
+
     const formData = new FormData();
 
     const appendEntry = async (u: string | undefined) => {
@@ -77,7 +79,7 @@ export default function Preview() {
     if (uri2) await appendEntry(uri2);
 
     // add a failsafe timeout so the app doesn't hang waiting for a slow server
-    const TIMEOUT_MS = Number(process.env.EXPO_PUBLIC_PREDICT_TIMEOUT) || 10000;
+  const TIMEOUT_MS = Number(process.env.EXPO_PUBLIC_PREDICT_TIMEOUT) || 30000;
     const controller = new AbortController();
     const signal = controller.signal;
     const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -101,6 +103,25 @@ export default function Preview() {
       const json = await res.json();
       // store identification result so the questionnaire can read it when ready
       setIdentification(json);
+      // after identification completes, automatically request recommendations
+      // and navigate to the recommendations screen so the user sees the final results.
+      try {
+        const recRes = await fetch(`${SERVER_URL}/recommend`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ identification: json, meta: {} }),
+        });
+        if (recRes.ok) {
+          const recJson = await recRes.json();
+          // store recommendations so the questionnaire can include answers and navigate on Submit
+          try { setRecommendations(recJson); } catch (e) { console.warn('Failed to set recommendations', e); }
+        } else {
+          const txt = await recRes.text();
+          console.warn('Recommend call failed', recRes.status, txt);
+        }
+      } catch (err) {
+        console.warn('Recommend request error', err);
+      }
     } catch (e: any) {
       // On abort or any error, set identification to null so questionnaire continues
       if (e && e.name === 'AbortError') {
