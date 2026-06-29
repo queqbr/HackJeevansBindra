@@ -13,8 +13,6 @@ import asyncio
 import tensorflow as tf
 import numpy as np
 import json
-from tensorflow.keras.preprocessing import image
-import matplotlib.pyplot as plt
 
 # Optional: load environment variables from a .env file during local development
 try:
@@ -53,7 +51,6 @@ async def generate_recommendations(identification: dict, meta: dict):
     )
 
     async def call_generative(prompt_text: str) -> str:
-        # Read API key and model name from environment (or .env)
         openai_key = os.getenv('OPENAI_API_KEY')
         openai_model = os.getenv('OPENAI_MODEL', 'gpt-3.5-turbo')
 
@@ -118,16 +115,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-def run_model_stub(images: List[Image.Image]):
-    results = []
-    for img in images:
-        results.append({
-            "size": img.size,
-            "mode": img.mode,
-            "note": "stub - replace run_model_stub with real model call",
-        })
-    return {"ok": True, "count": len(images), "results": results}
-
 
 @app.post("/recommend")
 async def recommend(req: RecommendRequest):
@@ -140,57 +127,55 @@ async def predict(files: List[UploadFile] = File(...), meta: Optional[str] = For
     if not files:
         raise HTTPException(status_code=400, detail="No files uploaded")
 
-    images = i1,i2
+    i1: Image.Image | None = None
+    i2: Image.Image | None = None
     for upload in files:
         content = await upload.read()
         try:
             img = Image.open(io.BytesIO(content)).convert("RGB")
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"Invalid image: {upload.filename}") from e
-        if(i1==null):
+        if i1 is None:
             i1 = img
         else:
             i2 = img
-    MODEL_PATH = "Soil_model.keras"         
-    LABELS_JSON = "soil_labels.json" 
-    MODEL_PATH1 = "plant_leaf2.keras"         
-    LABELS_JSON1 = "plant_leaf_labels.json"     
-    IMG_SIZE = 224                           
 
-    model = tf.keras.models.load_model(MODEL_PATH)
+    if i1 is None:
+        raise HTTPException(status_code=400, detail="No valid images uploaded")
+
+    MODEL_PATH = "Model/final_soil.keras"
+    LABELS_JSON = "Model/final_soil.json"
+    MODEL_PATH1 = "Model/final_plant.keras"
+    LABELS_JSON1 = "Model/final_plant.json"
+    IMG_SIZE = 224
+
+    soil_model = tf.keras.models.load_model(MODEL_PATH)
 
     with open(LABELS_JSON, "r") as f:
-        class_names = json.load(f)
+        soil_class_names = json.load(f)
 
-    img = image.load_img(i1, target_size=(IMG_SIZE, IMG_SIZE))
-    img_array = image.img_to_array(img) / 255.0
-    img_array = np.expand_dims(img_array, axis=0)
+    soil_arr = np.expand_dims(np.array(i1.resize((IMG_SIZE, IMG_SIZE))) / 255.0, axis=0)
+    soil_pred = soil_model.predict(soil_arr)
+    soil_label = soil_class_names[int(np.argmax(soil_pred[0]))]
 
-    pred = model.predict(img_array)
-    results = class_names[np.argmax(pred[0])]
-                           
+    plant_label: str | None = None
+    if i2 is not None:
+        plant_model = tf.keras.models.load_model(MODEL_PATH1)
+        with open(LABELS_JSON1, "r") as f:
+            plant_class_names = json.load(f)
+        plant_arr = np.expand_dims(np.array(i2.resize((IMG_SIZE, IMG_SIZE))) / 255.0, axis=0)
+        plant_pred = plant_model.predict(plant_arr)
+        plant_label = plant_class_names[int(np.argmax(plant_pred[0]))]
 
-    model = tf.keras.models.load_model(MODEL_PATH1)
+    result: dict = {"ok": True, "soil": soil_label, "plant": plant_label}
 
-    with open(LABELS_JSON1, "r") as f:
-        class_names = json.load(f)
-
-    img = image.load_img(i2, target_size=(IMG_SIZE, IMG_SIZE))
-    img_array = image.img_to_array(img) / 255.0
-    img_array = np.expand_dims(img_array, axis=0)
-
-    pred = model.predict(img_array)
-    predicted_label = class_names[np.argmax(pred[0])]
-    #results = run_model_stub(images)
     if meta:
         try:
-            import json as _json
-            meta_obj = _json.loads(meta)
-            results["meta"] = meta_obj
+            result["meta"] = json.loads(meta)
         except Exception:
-            results["meta_raw"] = meta
+            result["meta_raw"] = meta
 
-    return JSONResponse(results)
+    return JSONResponse(result)
 
 
 if __name__ == "__main__":
